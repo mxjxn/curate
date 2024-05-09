@@ -1,69 +1,193 @@
 /** @jsxImportSource frog/jsx */
+import { Frog } from "frog";
+import { neynar } from "frog/hubs";
+import { kv } from "@vercel/kv";
+import { Button, TextInput } from "frog";
+import {
+  Box,
+  Columns,
+  Column,
+  Divider,
+  Heading,
+  HStack,
+  Icon,
+  Image,
+  Rows,
+  Row,
+  Spacer,
+  Text,
+  VStack,
+  vars,
+} from "@/app/components/systemComponents";
+import { devtools } from "frog/dev";
+import { handle } from "frog/next";
+import { serveStatic } from "frog/serve-static";
+import {
+  APIResponse as UserProfileAPIResponse,
+  UserProfile,
+} from "@/types/UserProfile";
 
-import { Button, Frog, TextInput } from 'frog'
-import { devtools } from 'frog/dev'
-// import { neynar } from 'frog/hubs'
-import { handle } from 'frog/next'
-import { serveStatic } from 'frog/serve-static'
+if (!process.env.NEYNAR_HUB) {
+  throw new Error("NEYNAR_HUB environment variable is not set");
+}
 
-const app = new Frog({
-  assetsPath: '/',
-  basePath: '/api',
-  // Supply a Hub to enable frame verification.
-  // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
-})
+export const app = new Frog({
+  assetsPath: "/",
+  basePath: "/api",
+  hub: neynar({ apiKey: process.env.NEYNAR_API || "NEYNAR_FROG_FM" }),
+});
 
-app.frame('/', (c) => {
-  const { buttonValue, inputText, status } = c
-  const fruit = inputText || buttonValue
+app.frame("/curate-frame", (c) => {
+  // save the user's review to the database
+  const { inputText, frameData } = c;
+  const { castId = { fid: -1, hash: 0 }, fid = -1 } = frameData ?? {};
+  const { fid: frameFid, hash } = castId;
+  if (frameFid === -1) {
+    return c.res({
+      image: <div>Invalid Cast ID</div>,
+    });
+  } else if (hash === 0) {
+    return c.res({
+      image: <div>Invalid Cast Hash</div>,
+    });
+  }
+  return fetchUserProfiles(fid)
+    .then((userProfile) => {
+      const { users } = userProfile;
+      const { username, pfp_url: pfpUrl } = users[0];
+      if (!inputText) {
+        console.log("no input text");
+        return c.res({
+          image: (
+            <VStack>
+              <Heading>Curate {username}</Heading>
+              <Text>
+                Would you like to add some commentary on this artwork before
+                curating?
+              </Text>
+            </VStack>
+          ),
+          intents: [
+            <TextInput placeholder="write your thoughts here" />,
+            <Button>Submit</Button>,
+          ],
+        });
+      }
+      console.log("yes input text");
+      return kv
+        .incr("curation_id")
+        .then((id) => {
+          const curationKey = `curation:${id}`;
+          return kv.hset(curationKey, {
+            text: inputText,
+            castId: hash,
+            fid,
+            username,
+            pfpUrl,
+          });
+        })
+        .then(() => {
+          return c.res({
+            image: (
+              <VStack>
+                <Heading>You Curated {username}</Heading>
+                <Text>Thanks for your curation!</Text>
+              </VStack>
+            ),
+          });
+        });
+    })
+    .catch((error) => {
+      console.error("Error handling curate-frame:", error);
+      return c.res({
+        image: <div>Error processing your request</div>,
+      });
+    });
+});
+
+app.frame("/install-curate", (c) => {
+  const { buttonValue, inputText, status } = c;
+  const fruit = inputText || buttonValue;
   return c.res({
     image: (
       <div
         style={{
-          alignItems: 'center',
+          alignItems: "center",
           background:
-            status === 'response'
-              ? 'linear-gradient(to right, #432889, #17101F)'
-              : 'black',
-          backgroundSize: '100% 100%',
-          display: 'flex',
-          flexDirection: 'column',
-          flexWrap: 'nowrap',
-          height: '100%',
-          justifyContent: 'center',
-          textAlign: 'center',
-          width: '100%',
+            status === "response"
+              ? "linear-gradient(to right, #432889, #17101F)"
+              : "black",
+          backgroundSize: "100% 100%",
+          display: "flex",
+          flexDirection: "column",
+          flexWrap: "nowrap",
+          height: "100%",
+          justifyContent: "center",
+          textAlign: "center",
+          width: "100%",
         }}
       >
         <div
           style={{
-            color: 'white',
+            color: "white",
             fontSize: 60,
-            fontStyle: 'normal',
-            letterSpacing: '-0.025em',
+            fontStyle: "normal",
+            letterSpacing: "-0.025em",
             lineHeight: 1.4,
             marginTop: 30,
-            padding: '0 120px',
-            whiteSpace: 'pre-wrap',
+            padding: "0 120px",
+            whiteSpace: "pre-wrap",
           }}
         >
-          {status === 'response'
-            ? `Nice choice.${fruit ? ` ${fruit.toUpperCase()}!!` : ''}`
-            : 'Welcome!'}
+          Install the Curate action!
         </div>
       </div>
     ),
     intents: [
-      <TextInput placeholder="Enter custom fruit..." />,
-      <Button value="apples">Apples</Button>,
-      <Button value="oranges">Oranges</Button>,
-      <Button value="bananas">Bananas</Button>,
-      status === 'response' && <Button.Reset>Reset</Button.Reset>,
+      <Button.AddCastAction action="/add-curate-action">
+        Add Curate Cast Action
+      </Button.AddCastAction>,
     ],
-  })
-})
+  });
+});
 
-devtools(app, { serveStatic })
+app.castAction(
+  "/add-curate-action",
+  (c) => {
+    console.log(
+      `Cast Action to ${JSON.stringify(c.actionData.castId)} from ${
+        c.actionData.fid
+      }`
+    );
+    return c.res({ type: "frame", path: "/curate-frame" });
+  },
+  { name: "Curate", icon: "smiley" }
+);
 
-export const GET = handle(app)
-export const POST = handle(app)
+devtools(app, { serveStatic });
+
+export const GET = handle(app);
+export const POST = handle(app);
+
+async function fetchUserProfiles(fid: number): Promise<UserProfileAPIResponse> {
+  console.log('pre-=ftch')
+  const response = await fetch(
+    `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`,
+    {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        api_key: process.env.NEYNAR_API || "NEYNAR_FROG_FM",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Network response was not ok");
+  }
+
+  const data: UserProfileAPIResponse = await response.json(); // Parse JSON and assert the type
+
+  console.log("fetchUserProfiles response", data);
+  return data;
+}
