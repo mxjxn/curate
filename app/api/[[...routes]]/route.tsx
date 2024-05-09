@@ -31,7 +31,7 @@ if (!process.env.NEYNAR_HUB) {
   throw new Error("NEYNAR_HUB environment variable is not set");
 }
 
-export const app = new Frog({
+const app = new Frog({
   assetsPath: "/",
   basePath: "/api",
   hub: neynar({ apiKey: process.env.NEYNAR_API || "NEYNAR_FROG_FM" }),
@@ -166,9 +166,6 @@ app.castAction(
 
 devtools(app, { serveStatic });
 
-export const GET = handle(app);
-export const POST = handle(app);
-
 async function fetchUserProfiles(fid: number): Promise<UserProfileAPIResponse> {
   console.log('pre-=ftch')
   const response = await fetch(
@@ -191,3 +188,6 @@ async function fetchUserProfiles(fid: number): Promise<UserProfileAPIResponse> {
   console.log("fetchUserProfiles response", data);
   return data;
 }
+
+export const GET = handle(app);
+export const POST = handle(app);
