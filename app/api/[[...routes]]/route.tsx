@@ -56,7 +56,6 @@ app.frame("/curate-frame", (c) => {
       const { users } = userProfile;
       const { username, pfp_url: pfpUrl } = users[0];
       if (!inputText) {
-        console.log("no input text");
         return c.res({
           image: (
             <VStack>
@@ -73,7 +72,6 @@ app.frame("/curate-frame", (c) => {
           ],
         });
       }
-      console.log("yes input text");
       return kv
         .incr("curation_id")
         .then((id) => {
@@ -81,6 +79,7 @@ app.frame("/curate-frame", (c) => {
           return kv.hset(curationKey, {
             text: inputText,
             castId: hash,
+            frameFid,
             fid,
             username,
             pfpUrl,
@@ -103,6 +102,46 @@ app.frame("/curate-frame", (c) => {
         image: <div>Error processing your request</div>,
       });
     });
+});
+
+app.frame("/curate-test", (c) => {
+  return c.res({
+    image: (
+      <div
+        style={{
+          alignItems: "center",
+          background: "black",
+          display: "flex",
+          flexDirection: "column",
+          flexWrap: "nowrap",
+          height: "100%",
+          justifyContent: "center",
+          textAlign: "center",
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: 40,
+            fontStyle: "normal",
+            letterSpacing: "-0.025em",
+            lineHeight: 1.4,
+            marginTop: 30,
+            padding: "0 120px",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          Would you like to add some commentary on this artwork before curating?
+        </div>
+      </div>
+    ),
+    intents: (
+      <Button.AddCastAction action="/add-curate-action">
+        banana
+      </Button.AddCastAction>
+    ),
+  });
 });
 
 app.frame("/install-curate", (c) => {
@@ -167,7 +206,6 @@ app.castAction(
 devtools(app, { serveStatic });
 
 async function fetchUserProfiles(fid: number): Promise<UserProfileAPIResponse> {
-  console.log('pre-=ftch')
   const response = await fetch(
     `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`,
     {
@@ -178,13 +216,10 @@ async function fetchUserProfiles(fid: number): Promise<UserProfileAPIResponse> {
       },
     }
   );
-
   if (!response.ok) {
     throw new Error("Network response was not ok");
   }
-
   const data: UserProfileAPIResponse = await response.json(); // Parse JSON and assert the type
-
   console.log("fetchUserProfiles response", data);
   return data;
 }
