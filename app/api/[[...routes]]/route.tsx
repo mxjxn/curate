@@ -3,6 +3,26 @@ import { Frog } from "frog";
 import { neynar } from "frog/hubs";
 import { kv } from "@vercel/kv";
 import { Button, TextInput } from "frog";
+
+import { createSystem } from "frog/ui";
+
+const {
+  Box,
+  Columns,
+  Column,
+  Divider,
+  Heading,
+  HStack,
+  Icon,
+  Image,
+  Rows,
+  Row,
+  Spacer,
+  Text,
+  VStack,
+  vars,
+} = createSystem();
+/*
 import {
   Box,
   Columns,
@@ -19,6 +39,7 @@ import {
   VStack,
   vars,
 } from "@/app/components/systemComponents";
+*/
 import { devtools } from "frog/dev";
 import { handle } from "frog/next";
 import { serveStatic } from "frog/serve-static";
@@ -107,7 +128,7 @@ app.frame("/curate-frame", (c) => {
 app.frame("/curate-test", (c) => {
   return c.res({
     image: (
-      <div
+      /*<div
         style={{
           alignItems: "center",
           background: "black",
@@ -134,7 +155,13 @@ app.frame("/curate-test", (c) => {
         >
           Would you like to add some commentary on this artwork before curating?
         </div>
-      </div>
+      </div>*/
+      <VStack>
+        <Heading>Curate</Heading>
+        <Text>
+          Would you like to add some commentary on this artwork before curating?
+        </Text>
+      </VStack>
     ),
     intents: (
       <Button.AddCastAction action="/add-curate-action">
