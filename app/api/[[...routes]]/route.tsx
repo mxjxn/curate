@@ -32,6 +32,7 @@ if (!process.env.NEYNAR_HUB) {
 }
 
 const app = new Frog({
+  ui: { vars },
   assetsPath: "/",
   basePath: "/api",
   hub: neynar({ apiKey: process.env.NEYNAR_API || "NEYNAR_FROG_FM" }),
@@ -107,34 +108,6 @@ app.frame("/curate-frame", (c) => {
 app.frame("/curate-test", (c) => {
   return c.res({
     image: (
-      /*<div
-        style={{
-          alignItems: "center",
-          background: "black",
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "nowrap",
-          height: "100%",
-          justifyContent: "center",
-          textAlign: "center",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            fontSize: 40,
-            fontStyle: "normal",
-            letterSpacing: "-0.025em",
-            lineHeight: 1.4,
-            marginTop: 30,
-            padding: "0 120px",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          Would you like to add some commentary on this artwork before curating?
-        </div>
-      </div>*/
       <VStack>
         <Heading>Curate</Heading>
         <Text>
@@ -155,38 +128,9 @@ app.frame("/install-curate", (c) => {
   const fruit = inputText || buttonValue;
   return c.res({
     image: (
-      <div
-        style={{
-          alignItems: "center",
-          background:
-            status === "response"
-              ? "linear-gradient(to right, #432889, #17101F)"
-              : "black",
-          backgroundSize: "100% 100%",
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "nowrap",
-          height: "100%",
-          justifyContent: "center",
-          textAlign: "center",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            fontSize: 60,
-            fontStyle: "normal",
-            letterSpacing: "-0.025em",
-            lineHeight: 1.4,
-            marginTop: 30,
-            padding: "0 120px",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          Install the Curate action!
-        </div>
-      </div>
+      <VStack>
+        <Heading>Install the Curate action!</Heading>
+      </VStack>
     ),
     intents: [
       <Button.AddCastAction action="/add-curate-action">
