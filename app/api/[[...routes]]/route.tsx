@@ -38,7 +38,7 @@ const app = new Frog({
   hub: neynar({ apiKey: process.env.NEYNAR_API || "NEYNAR_FROG_FM" }),
 });
 
-app.frame("/curate-frame", (c) => {
+app.frame("/curate-frame", async (c) => {
   // save the user's review to the database
   const { inputText, frameData } = c;
   const { castId = { fid: -1, hash: 0 }, fid = -1 } = frameData ?? {};
@@ -52,68 +52,82 @@ app.frame("/curate-frame", (c) => {
       image: <div>Invalid Cast Hash</div>,
     });
   }
-  return fetchUserProfiles(fid)
-    .then((userProfile) => {
-      const { users } = userProfile;
-      const { username, pfp_url: pfpUrl } = users[0];
-      if (!inputText) {
-        return c.res({
-          image: (
-            <VStack>
-              <Heading>Curate {username}</Heading>
-              <Text>
-                Would you like to add some commentary on this artwork before
-                curating?
-              </Text>
-            </VStack>
-          ),
-          intents: [
-            <TextInput placeholder="write your thoughts here" />,
-            <Button>Submit</Button>,
-          ],
-        });
-      }
-      return kv
-        .incr("curation_id")
-        .then((id) => {
-          const curationKey = `curation:${id}`;
-          return kv.hset(curationKey, {
-            text: inputText,
-            castId: hash,
-            frameFid,
-            fid,
-            username,
-            pfpUrl,
-          });
-        })
-        .then(() => {
-          return c.res({
-            image: (
-              <VStack>
-                <Heading>You Curated {username}</Heading>
-                <Text>Thanks for your curation!</Text>
-              </VStack>
-            ),
-          });
-        });
-    })
-    .catch((error) => {
-      console.error("Error handling curate-frame:", error);
+  let userProfile, casterProfile;
+  try {
+    userProfile = await fetchUserProfiles(fid)
+  } catch (error) {
+      console.error("fetchUserProfile userId error", error);
       return c.res({
-        image: <div>Error processing your request</div>,
+        image: <Box>Error processing your request</Box>,
       });
+  };
+  const { users } = userProfile;
+  const { username, pfp_url: pfpUrl } = users[0];
+  try {
+    casterProfile = await fetchUserProfiles(frameFid)
+  } catch (error) {
+      console.error("fetchUserProfile userId error", error);
+      return c.res({
+        image: <Box>Error processing your request</Box>,
+      });
+  };
+  const { users: casterUsers } = casterProfile;
+  const { username: casterUsername, pfp_url: casterPfpUrl } = casterUsers[0];
+  if (!inputText) {
+      return c.res({
+        image: (
+          <VStack>
+            <Heading>Curate {casterUsername}</Heading>
+            <Text>
+              Would you like to add some commentary on this artwork before
+              curating?
+            </Text>
+          </VStack>
+        ),
+        intents: [
+          <TextInput placeholder="write your thoughts here" />,
+          <Button>Submit</Button>,
+        ],
+      });
+  }
+  const curationId = await kv.incr("curation_id")
+  const curationKey = `curation:${curationId}`;
+  try {
+  await kv.hset(curationKey, {
+    text: inputText,
+    castId: hash,
+    curatorFid: fid,
+    curatorUsername: username,
+    castFid: frameFid,
+    castUsername: casterUsername,
+    casterPfpUrl,
+  });
+  } catch (error) {
+    console.error("kv.hset error", error);
+    return c.res({
+      image: <Box>Error processing your request</Box>,
     });
+  }
+  return c.res({
+    image: (
+      <VStack>
+        <Heading>You Curated {username}</Heading>
+        <Text>Thanks for your curation!</Text>
+      </VStack>
+    ),
+  });
 });
 
 app.frame("/curate-test", (c) => {
   return c.res({
     image: (
-      <VStack>
-        <Heading>Curate</Heading>
-        <Text>
-          Would you like to add some commentary on this artwork before curating?
-        </Text>
-      </VStack>
+        <VStack gap="16" padding="10" grow>
+          <Heading color="blue900">Curating</Heading>
+          <Text>
+            Would you like to add some commentary on this artwork before
+            curating?
+          </Text>
+        </VStack>
     ),
     intents: (
       <Button.AddCastAction action="/add-curate-action">
